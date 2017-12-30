@@ -1,0 +1,153 @@
+import requests,random,csv,time
+from mailer import Message
+from mailer import Mailer
+def get_cookies():
+    headers = {
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.8,en;q=0.6',
+        'Connection': 'keep-alive',
+        'Content-Length': '21',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Host': 'guoxiaomei.cn',
+        'Origin': 'http://guoxiaomei.cn',
+        'Referer': 'http://guoxiaomei.cn/admin/apply/index',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.101 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest'
+    }
+    data = {
+        'username': '17502877371',
+        'password': '9f2ec29dcc8c7992568c58b24cd2e2bb'
+    }
+    url = 'http://guoxiaomei.cn/admin/login/submit'
+    r = requests.post(url, data=data, headers=headers)
+    #print(r.text)
+    #print(r.status_code)
+    #print(r.cookies.get_dict())
+    #print(type(r.cookies))
+    return r.cookies
+def get_data(cookies): #获得列表数据
+    headers = {
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.8,en;q=0.6',
+        'Connection': 'keep-alive',
+        'Content-Length': '21',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Host': 'guoxiaomei.cn',
+        'Origin': 'http://guoxiaomei.cn',
+        'Referer': 'http://guoxiaomei.cn/admin/apply/index',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.101 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest'
+    }
+    data = {
+        'pageNum': 1,
+        'pageSize': 30
+    }
+
+    url = 'http://guoxiaomei.cn/admin/apply/list?r=%s' % random.random()
+
+    r = requests.post(url, data=data, headers=headers, cookies=cookies)
+    #print(r.status_code)
+    #print(r.json())
+    d = r.json()
+    return d
+
+
+def verify_data(d,num):#验证最新信息，若相同返回True，不相同返回False 并更新最新信息
+    '''
+    f = open('/home/cailujia/Desktop/finally.csv', 'w+')
+    writer = csv.writer(f)
+    writer.writerow(('公司名称', '联系人', '联系电话', '公司地址', '类型', '城市', '其他信息', '日期', '状态'))
+    for i in range(20):
+        if 'city' in t['data']['rows'][i] and t['data']['rows'][i]['city'] == '成都':
+            if 'status' not in t['data']['rows'][i]:
+                t['data']['rows'][i]['status'] = '未处理'
+            if t['data']['rows'][i]['status'] == 'usable':
+                t['data']['rows'][i]['status'] = '可以跟进'
+            if t['data']['rows'][i]['status'] == 'refuse':
+                t['data']['rows'][i]['status'] = '拒绝'
+            if t['data']['rows'][i]['type'] == 'apply':
+                t['data']['rows'][i]['type'] = '免费入住'
+
+            if 'weChat' not in t['data']['rows'][i]:
+                t['data']['rows'][i]['weChat'] = '无'
+            if t['data']['rows'][i]['weChat'] == '{"message":""}':
+                t['data']['rows'][i]['weChat'] = '无'
+            writer.writerow((t['data']['rows'][i]['companyName'], t['data']['rows'][i]['contactName'], \
+                             t['data']['rows'][i]['contactPhone'], t['data']['rows'][i]['companyAddress'], \
+                             t['data']['rows'][i]['type'], t['data']['rows'][i]['city'], \
+                             t['data']['rows'][i]['weChat'], t['data']['rows'][i]['uodateTime'], \
+                             t['data']['rows'][i]['status']
+                             ))
+
+    f.close()
+'''
+    phonenum =d['data']['rows'][0]['contactPhone']
+    if num ==phonenum:
+        return True
+    else:
+
+        print('有更新')
+        print('公司名称',d['data']['rows'][0]['companyName'])
+        print('联系人',d['data']['rows'][0]['contactName'])
+        print('联系电话',d['data']['rows'][0]['contactPhone'])
+
+        return False
+def send_email(companyName,contactName,phonenum,companyAddress,city):
+
+    message = Message(From='15639180526@163.com', To=['1398179515@qq.com', ], Subject='网站有更新',Charset='utf8')
+    sender = Mailer('smtp.163.com')
+    sender.login('15639180526@163.com', 'cai12345')
+
+    #message.Body = '手机号为%s的用户更新了'%phonenum
+    message.Body = '公司名称：%s  联系人：%s   联系电话：%s   公司地址：%s   城市：%s'%(companyName,contactName,phonenum,companyAddress,city)
+    sender.send(message)
+    print('已发送更新提醒')
+    print('+++++++++++')
+
+def send_email_to_me(meg):
+
+    message = Message(From='15639180526@163.com', To=['1398179515@qq.com', ], Subject='系统提醒',Charset='utf8')
+    sender = Mailer('smtp.163.com')
+    sender.login('15639180526@163.com', 'cai12345')
+
+    message.Body = meg
+    sender.send(message)
+
+def main():
+    try:
+        cookies = get_cookies()
+    except:
+        send_email_to_me('获得cookies出错')
+        print('获得cookies出错')
+        assert False
+    num = 123
+    #print('初始电话')
+
+    while True:
+        try:
+            d = get_data(cookies)
+        except:
+            send_email_to_me('获得列表数据出错')
+            print('获得列表数据出错')
+            assert False
+        phonenum = d['data']['rows'][0]['contactPhone']
+        v = verify_data(d,num)#信息相同True ，不相同为False
+        if not v: #如果更新就发送邮件
+            num = phonenum
+            companyName = d['data']['rows'][0]['companyName']
+            contactName = d['data']['rows'][0]['contactName']
+            companyAddress = d['data']['rows'][0]['companyAddress']
+            city = '无'
+            if 'city' in d['data']['rows'][0]:
+                city = d['data']['rows'][0]['city']
+            send_email(companyName,contactName,phonenum,companyAddress,city)
+            #print(num)
+            time.sleep(2)
+            continue
+        if v : #如果不更新就不发送邮件
+            time.sleep(2)
+            continue
+try:
+    main()
+except:
+    send_email_to_me('程序出错')
